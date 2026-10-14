@@ -5,6 +5,7 @@ Set-Location $root
 $pgBin = Join-Path $root 'runtime\postgres\bin'
 $pgData = Join-Path $root 'data\postgres'
 $pgLog = Join-Path $root 'logs\postgres.log'
+$env:PATH = (Join-Path $root 'runtime\postgres\bin') + ';' + $env:PATH
 $env:APP_ENV = 'prod'
 $env:APP_DEBUG = '0'
 $env:SERVER_ROOT = (Join-Path $root 'public').Replace('\','/')
