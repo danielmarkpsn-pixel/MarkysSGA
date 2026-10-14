@@ -50,8 +50,8 @@ jobs:
           Expand-Archive "$env:RUNNER_TEMP/frankenphp.zip" "$env:RUNNER_TEMP/frankenphp" -Force
           $franken = Get-ChildItem "$env:RUNNER_TEMP/frankenphp" -Recurse -Filter frankenphp.exe | Select-Object -First 1
           if (-not $franken) { throw "frankenphp.exe nao encontrado no arquivo oficial." }
-          Copy-Item $franken.FullName "staging/runtime/frankenphp.exe"
-          Get-ChildItem $franken.Directory.FullName -File | Where-Object { $_.Name -ne 'frankenphp.exe' } | Copy-Item -Destination "staging/runtime" -Force
+          Copy-Item "$($franken.Directory.FullName)/*" "staging/runtime" -Recurse -Force
+          Copy-Item $franken.FullName "staging/runtime/frankenphp.exe" -Force
 
           $pgUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64-binaries.zip'
           Invoke-WebRequest -Uri $pgUrl -OutFile "$env:RUNNER_TEMP/postgres.zip"
