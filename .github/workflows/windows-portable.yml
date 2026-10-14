@@ -52,6 +52,11 @@ jobs:
           if (-not $franken) { throw "frankenphp.exe nao encontrado no arquivo oficial." }
           Copy-Item "$($franken.Directory.FullName)/*" "staging/runtime" -Recurse -Force
           Copy-Item $franken.FullName "staging/runtime/frankenphp.exe" -Force
+          $iniTemplate = Get-ChildItem "staging/runtime" -Recurse -File | Where-Object { $_.Name -eq 'php.ini-development' } | Select-Object -First 1
+          if ($iniTemplate) {
+            Copy-Item $iniTemplate.FullName "staging/runtime/php.ini" -Force
+            Add-Content "staging/runtime/php.ini" "`nextension_dir=ext`nextension=pdo_pgsql`nextension=pgsql`nextension=intl`nextension=mbstring`nextension=openssl`nextension=curl`nextension=zip`nextension=fileinfo`nextension=sodium"
+          }
 
           $pgUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64-binaries.zip'
           Invoke-WebRequest -Uri $pgUrl -OutFile "$env:RUNNER_TEMP/postgres.zip"
