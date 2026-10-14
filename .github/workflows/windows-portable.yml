@@ -36,6 +36,8 @@ jobs:
       - name: Instalar dependencias de producao
         shell: pwsh
         run: |
+          $env:APP_ENV = 'prod'
+          $env:APP_DEBUG = '0'
           composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
           if ($LASTEXITCODE -ne 0) { throw "Composer falhou; pacote nao pode ser publicado." }
 
