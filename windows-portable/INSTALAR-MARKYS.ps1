@@ -14,11 +14,17 @@ if (!(Test-Path (Join-Path $pgBin 'initdb.exe'))) { throw 'PostgreSQL portatil n
 if (Test-Path $envFile) { throw '.env.local ja existe. Por seguranca, instalacao inicial cancelada para nao sobrescrever segredos.' }
 
 New-Item -ItemType Directory -Force -Path $pgData, (Join-Path $root 'data\backups'), (Join-Path $root 'logs'), (Split-Path $private) | Out-Null
-$pgPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
-$appSecret = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-$mercureSecret = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-$oauthPass = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
-$oauthEnc = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+function New-RandomHex([int]$Bytes = 32) {
+  $buffer = New-Object byte[] $Bytes
+  $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+  try { $rng.GetBytes($buffer) } finally { $rng.Dispose() }
+  return ([BitConverter]::ToString($buffer)).Replace('-', '').ToLowerInvariant()
+}
+$pgPassword = New-RandomHex 24
+$appSecret = New-RandomHex 32
+$mercureSecret = New-RandomHex 32
+$oauthPass = New-RandomHex 24
+$oauthEnc = New-RandomHex 32
 
 if (!(Test-Path $pgData -PathType Container) -or !(Get-ChildItem $pgData -Force -ErrorAction SilentlyContinue)) {
   $pwFile = Join-Path $env:TEMP ('markys-pg-' + [guid]::NewGuid().ToString('N') + '.txt')
@@ -56,16 +62,13 @@ OAUTH_PUBLIC_KEY=config/jwt/public.pem
 OAUTH_PASSPHRASE=$oauthPass
 OAUTH_ENCRYPTION_KEY=$oauthEnc
 "@
-Set-Content -Path $envFile -Value $envText -Encoding utf8
+[IO.File]::WriteAllText($envFile, $envText, (New-Object System.Text.UTF8Encoding($false)))
 
-# Chaves RSA para o servidor OAuth. O openssl acompanha o pacote FrankenPHP se presente.
-$openssl = Join-Path $root 'runtime\openssl.exe'
-if (!(Test-Path $openssl)) { $openssl = (Get-Command openssl.exe -ErrorAction SilentlyContinue).Source }
-if (!$openssl) { throw 'OpenSSL nao encontrado. O runtime precisa incluir openssl.exe para gerar as chaves JWT.' }
-& $openssl genrsa -out $private 2048
-if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar chave privada OAuth.' }
-& $openssl rsa -in $private -pubout -out $public
-if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar chave publica OAuth.' }
+# Gerar chaves RSA usando a extensao OpenSSL do PHP distribuido no runtime.
+& (Join-Path $root 'runtime\frankenphp.exe') php-cli (Join-Path $root 'gerar-chaves.php')
+if ($LASTEXITCODE -ne 0 -or !(Test-Path $private) -or !(Test-Path $public)) {
+  throw 'Falha ao gerar chaves JWT. Verifique se a extensao openssl esta disponivel no runtime.'
+}
 
 Write-Host ''
 Write-Host 'MARKYS SGA: base local preparada.' -ForegroundColor Green
