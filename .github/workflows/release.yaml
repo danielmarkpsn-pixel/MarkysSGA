@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - v2.2
+      - v2.3
+      - v2.4
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v3
+        with:
+          release-type: simple
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          default-branch: ${{ github.ref_name }}
+          extra-files: |
+            config/services.yaml
