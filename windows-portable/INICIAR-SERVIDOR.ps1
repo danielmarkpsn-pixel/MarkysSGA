@@ -32,9 +32,15 @@ if (!(Test-Path $pgPid)) {
 
 $env:DATABASE_URL = ([regex]::Match($envText, 'DATABASE_URL="([^"]+)"')).Groups[1].Value
 if (!$env:DATABASE_URL) { throw 'DATABASE_URL nao foi lida do .env.local.' }
-& (Join-Path $pgBin 'createdb.exe') -h 127.0.0.1 -p 5432 -U markys markys 2>$null
-# createdb pode retornar erro se o banco ja existir; a verificacao abaixo decide.
-& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d markys -c 'SELECT 1' 2>$null
+if ($envText -notmatch 'DATABASE_URL="postgresql://markys:([^@]+)@') { throw 'Senha do banco nao foi lida do .env.local.' }
+$env:PGPASSWORD = $Matches[1]
+$dbExists = & (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='markys'" 2>$null
+if ($LASTEXITCODE -eq 0 -and "$dbExists".Trim() -ne '1') {
+  & (Join-Path $pgBin 'createdb.exe') -h 127.0.0.1 -p 5432 -U markys markys
+  if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel criar o banco markys.' }
+}
+& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d markys -c 'SELECT 1'
+if ($LASTEXITCODE -ne 0) { throw 'Banco ainda nao acessivel. Verifique a senha do banco e os logs.' }
 if ($LASTEXITCODE -ne 0) {
   Write-Host 'Banco ainda nao acessivel. Verifique a senha do banco e os logs.' -ForegroundColor Red
   exit 1
@@ -46,4 +52,4 @@ if ($LASTEXITCODE -ne 0) { throw 'Migrations falharam. Nao continue ate corrigir
 
 Write-Host 'Iniciando servidor web em http://0.0.0.0:8080'
 Write-Host 'Clientes da rede devem usar http://IP-DO-SERVIDOR:8080'
-& (Join-Path $root 'runtime\frankenphp.exe') php-server --listen '0.0.0.0:8080' --root public
+& (Join-Path $root 'runtime\frankenphp.exe') run --config (Join-Path $root 'etc\Caddyfile')
