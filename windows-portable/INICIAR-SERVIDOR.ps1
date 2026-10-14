@@ -1,6 +1,6 @@
 # Inicializa PostgreSQL e FrankenPHP. A instalacao inicial do NovoSGA e executada separadamente.
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+$root = $PSScriptRoot
 Set-Location $root
 $pgBin = Join-Path $root 'runtime\postgres\bin'
 $pgData = Join-Path $root 'data\postgres'
@@ -12,13 +12,10 @@ $env:APP_DEBUG = '0'
 $env:SERVER_ROOT = (Join-Path $root 'public').Replace('\','/')
 $env:SERVER_NAME = ':8080'
 $env:FRANKENPHP_CONFIG = ''
-$env:MERCURE_PUBLISHER_JWT_KEY = ''
-$env:MERCURE_SUBSCRIBER_JWT_KEY = ''
-$env:MERCURE_EXTRA_DIRECTIVES = ''
 $env:APP_RUNTIME = 'Runtime\FrankenPhpSymfony\Runtime'
 
-if (!(Test-Path '.env.local')) { throw 'Execute INSTALAR-MARKYS.ps1 primeiro.' }
-if (!(Test-Path (Join-Path $pgData 'PG_VERSION'))) { throw 'Banco ainda nao inicializado. Execute INSTALAR-MARKYS.ps1.' }
+if (!(Test-Path '.env.local')) { throw 'Execute INSTALAR-MARKYS.bat primeiro.' }
+if (!(Test-Path (Join-Path $pgData 'PG_VERSION'))) { throw 'Banco ainda nao inicializado. Execute INSTALAR-MARKYS.bat.' }
 
 $envText = Get-Content '.env.local' -Raw
 if ($envText -notmatch 'MERCURE_JWT_SECRET=(.+)') { throw 'MERCURE_JWT_SECRET ausente em .env.local.' }
