@@ -1,0 +1,94 @@
+name: Montar pacote portatil MARKYS SGA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "windows-portable/**"
+      - ".github/workflows/windows-portable.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "Dockerfile"
+      - "etc/**"
+      - "src/**"
+      - "templates/**"
+      - "public/**"
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Preparar PHP e extensoes para dependencias
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: ctype, iconv, intl, mbstring, openssl, pdo_pgsql, sodium, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Instalar dependencias de producao
+        shell: pwsh
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          if ($LASTEXITCODE -ne 0) { throw "Composer falhou; pacote nao pode ser publicado." }
+
+      - name: Baixar runtimes oficiais
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path staging/runtime, staging/runtime/postgres | Out-Null
+
+          $frankenUrl = 'https://github.com/php/frankenphp/releases/download/v1.12.5/frankenphp-windows-x86_64.zip'
+          Invoke-WebRequest -Uri $frankenUrl -OutFile "$env:RUNNER_TEMP/frankenphp.zip"
+          Expand-Archive "$env:RUNNER_TEMP/frankenphp.zip" "$env:RUNNER_TEMP/frankenphp" -Force
+          $franken = Get-ChildItem "$env:RUNNER_TEMP/frankenphp" -Recurse -Filter frankenphp.exe | Select-Object -First 1
+          if (-not $franken) { throw "frankenphp.exe nao encontrado no arquivo oficial." }
+          Copy-Item $franken.FullName "staging/runtime/frankenphp.exe"
+          Get-ChildItem $franken.Directory.FullName -File | Where-Object { $_.Name -ne 'frankenphp.exe' } | Copy-Item -Destination "staging/runtime" -Force
+
+          $pgUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64-binaries.zip'
+          Invoke-WebRequest -Uri $pgUrl -OutFile "$env:RUNNER_TEMP/postgres.zip"
+          $pgHash = (Get-FileHash "$env:RUNNER_TEMP/postgres.zip" -Algorithm SHA256).Hash.ToLower()
+          if ($pgHash -ne '43bb45f173a6f08cf1d29a97a6d8deb119e8e8093a24c00d2d1001a0ccaa8281') {
+            throw "Hash do PostgreSQL nao confere. Download interrompido."
+          }
+          Expand-Archive "$env:RUNNER_TEMP/postgres.zip" "$env:RUNNER_TEMP/postgres" -Force
+          $pgctl = Get-ChildItem "$env:RUNNER_TEMP/postgres" -Recurse -Filter pg_ctl.exe | Select-Object -First 1
+          if (-not $pgctl) { throw "pg_ctl.exe nao encontrado no arquivo PostgreSQL." }
+          $pgRoot = $pgctl.Directory.Parent.FullName
+          Copy-Item "$pgRoot\*" "staging/runtime/postgres" -Recurse -Force
+          if (-not (Test-Path 'staging/runtime/postgres/bin/pg_ctl.exe')) { throw "Estrutura inesperada do PostgreSQL." }
+
+      - name: Preparar aplicacao para distribuicao
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dest = (Resolve-Path staging).Path
+          $exclude = @('.git', '.github', 'windows-portable', 'node_modules', 'tests', 'var/cache', 'var/log')
+          Get-ChildItem -Force | Where-Object { $_.Name -notin $exclude -and $_.Name -ne 'staging' } | ForEach-Object {
+            Copy-Item $_.FullName $dest -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path staging/data/postgres, staging/data/backups, staging/logs | Out-Null
+          Copy-Item windows-portable/INICIAR-MARKYS.bat staging/INICIAR-MARKYS.bat -Force
+          Copy-Item windows-portable/CONFIGURACAO-LAN.md staging/LEIA-ME-REDE.md -Force
+          Copy-Item windows-portable/INSTALAR-MARKYS.ps1 staging/INSTALAR-MARKYS.ps1 -Force
+          Copy-Item windows-portable/INICIAR-SERVIDOR.ps1 staging/INICIAR-SERVIDOR.ps1 -Force
+          Copy-Item windows-portable/PARAR-SERVIDOR.ps1 staging/PARAR-SERVIDOR.ps1 -Force
+          Copy-Item windows-portable/README-PACOTE.md staging/LEIA-ME.md -Force
+          Compress-Archive -Path 'staging/*' -DestinationPath 'MARKYS-SGA-Windows-Portatil.zip' -CompressionLevel Optimal
+          Get-Item 'MARKYS-SGA-Windows-Portatil.zip' | Format-List Name,Length
+
+      - name: Publicar pacote ZIP como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: MARKYS-SGA-Windows-Portatil
+          path: MARKYS-SGA-Windows-Portatil.zip
+          if-no-files-found: error
+          retention-days: 14
