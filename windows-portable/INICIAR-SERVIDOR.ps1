@@ -40,11 +40,7 @@ if ($LASTEXITCODE -eq 0 -and "$dbExists".Trim() -ne '1') {
   if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel criar o banco markys.' }
 }
 & (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d markys -c 'SELECT 1'
-if ($LASTEXITCODE -ne 0) { throw 'Banco ainda nao acessivel. Verifique a senha do banco e os logs.' }
-if ($LASTEXITCODE -ne 0) {
-  Write-Host 'Banco ainda nao acessivel. Verifique a senha do banco e os logs.' -ForegroundColor Red
-  exit 1
-}
+if ($LASTEXITCODE -ne 0) { throw 'Banco ainda nao acessivel. Verifique a senha e logs\postgres.log.' }
 
 Write-Host 'Aplicando migrations do MARKYS SGA...'
 & (Join-Path $root 'runtime\frankenphp.exe') php-cli bin/console doctrine:migrations:migrate --no-interaction
