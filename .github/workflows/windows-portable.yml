@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: markys-windows-portable
+  cancel-in-progress: true
+
 jobs:
   package-windows:
     runs-on: windows-latest
