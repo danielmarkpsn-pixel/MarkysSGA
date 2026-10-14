@@ -9,10 +9,10 @@
                 <a class="navbar-brand" href="{{ path('home') }}">
                     <img src="{{ asset(logoNavbar) }}" alt="{{ title }}" title="{{ title }}" height="38">
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#novosga-navbar" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#markys-navbar" aria-controls="markys-navbar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div id="novosga-navbar" class="collapse navbar-collapse novosga-navbar">
+                <div id="markys-navbar" class="collapse navbar-collapse markys-navbar">
                     {% if app.user and (app.user.admin or app.user.lotacao) %}
                         {{ render(controller('App\\Controller\\DefaultController::menu')) }}
                     {% endif %}
