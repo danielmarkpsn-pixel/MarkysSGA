@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the NovoSGA project.
+ *
+ * (c) Rogerio Lino <rogeriolino@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace App\EventSubscriber;
+
+use App\Entity\Usuario;
+use Doctrine\ORM\EntityManagerInterface;
+use League\Bundle\OAuth2ServerBundle\Security\Authentication\Token\OAuth2Token;
+use Psr\Clock\ClockInterface;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
+
+/**
+ * UserSessionIdSubscriber
+ *
+ * @author Rogerio Lino <rogeriolino@gmail.com>
+ */
+class UserSessionIdSubscriber implements EventSubscriberInterface
+{
+    public function __construct(
+        private readonly RequestStack $requestStack,
+        private readonly EntityManagerInterface $em,
+        private readonly ClockInterface $clock,
+    ) {
+    }
+
+    public function onLoginSuccess(LoginSuccessEvent $event): void
+    {
+        if ($event->getAuthenticatedToken() instanceof OAuth2Token) {
+            // do not set session id for OAuth2 tokens
+            return;
+        }
+
+        /** @var Usuario */
+        $user = $event->getUser();
+        $sessionId = $this->requestStack->getSession()->getId();
+
+        $user->setSessionId($sessionId);
+        $user->setUltimoAcesso(\DateTime::createFromImmutable($this->clock->now()));
+        $user->setIp($this->requestStack->getCurrentRequest()?->getClientIp());
+
+        $this->em->persist($user);
+        $this->em->flush();
+    }
+
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            LoginSuccessEvent::class => 'onLoginSuccess',
+        ];
+    }
+}
