@@ -82,6 +82,7 @@ jobs:
           Copy-Item windows-portable/INICIAR-SERVIDOR.ps1 staging/INICIAR-SERVIDOR.ps1 -Force
           Copy-Item windows-portable/PARAR-SERVIDOR.ps1 staging/PARAR-SERVIDOR.ps1 -Force
           Copy-Item windows-portable/README-PACOTE.md staging/LEIA-ME.md -Force
+          Copy-Item windows-portable/gerar-chaves.php staging/gerar-chaves.php -Force
           Compress-Archive -Path 'staging/*' -DestinationPath 'MARKYS-SGA-Windows-Portatil.zip' -CompressionLevel Optimal
           Get-Item 'MARKYS-SGA-Windows-Portatil.zip' | Format-List Name,Length
 
