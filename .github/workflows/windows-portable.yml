@@ -64,8 +64,30 @@ jobs:
           } else {
             New-Item -ItemType File -Force "staging/runtime/php.ini" | Out-Null
           }
-          Add-Content "staging/runtime/php.ini" "`nextension_dir=ext`nextension=pdo_pgsql`nextension=pgsql`nextension=intl`nextension=mbstring`nextension=openssl`nextension=curl`nextension=zip`nextension=fileinfo`nextension=sodium"
-          if (-not (Get-ChildItem "staging/runtime" -Recurse -Filter php_pdo_pgsql.dll | Select-Object -First 1)) { throw "Extensao pdo_pgsql.dll nao encontrada no runtime FrankenPHP." }
+
+          # Localiza as DLLs e configura o diretorio correto de extensoes do PHP.
+          $opensslDll = Get-ChildItem "staging/runtime" -Recurse -File -Filter php_openssl.dll | Select-Object -First 1
+          $pdoDll = Get-ChildItem "staging/runtime" -Recurse -File -Filter php_pdo_pgsql.dll | Select-Object -First 1
+          if (-not $opensslDll) { throw "Extensao php_openssl.dll nao encontrada no runtime FrankenPHP." }
+          if (-not $pdoDll) { throw "Extensao php_pdo_pgsql.dll nao encontrada no runtime FrankenPHP." }
+          $runtimeRoot = (Resolve-Path "staging/runtime").Path
+          $extensionDir = Split-Path $opensslDll.FullName -Parent
+          $relativeExtensionDir = [IO.Path]::GetRelativePath($runtimeRoot, $extensionDir).Replace('\','/')
+          $ini = Get-Content "staging/runtime/php.ini" -Raw
+          $ini = [regex]::Replace($ini, '(?m)^\s*;?\s*extension_dir\s*=.*(?:\r?\n)?', '')
+          $ini = [regex]::Replace($ini, '(?m)^\s*;?\s*extension\s*=.*(?:\r?\n)?', '')
+          $nl = [Environment]::NewLine
+          $ini += $nl + 'extension_dir="' + $relativeExtensionDir + '"' + $nl
+          $ini += 'extension=openssl' + $nl + 'extension=pdo_pgsql' + $nl + 'extension=pgsql' + $nl
+          $ini += 'extension=intl' + $nl + 'extension=mbstring' + $nl + 'extension=curl' + $nl
+          $ini += 'extension=zip' + $nl + 'extension=fileinfo' + $nl + 'extension=sodium' + $nl
+          Set-Content "staging/runtime/php.ini" -Value $ini -Encoding ascii
+
+          # Valida a extensao no mesmo runtime que sera entregue ao usuario.
+          $env:PHPRC = (Join-Path $runtimeRoot '')
+          $env:PHP_INI_SCAN_DIR = ''
+          & "staging/runtime/frankenphp.exe" php-cli -r "if (!extension_loaded('openssl')) { fwrite(STDERR, 'OpenSSL indisponivel; php.ini: ' . (php_ini_loaded_file() ?: 'nenhum') . PHP_EOL); exit(1); } echo 'OpenSSL OK', PHP_EOL;"
+          if ($LASTEXITCODE -ne 0) { throw "O runtime portatil nao conseguiu carregar OpenSSL; pacote nao sera publicado." }
 
           $pgUrl = 'https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64-binaries.zip'
           Invoke-WebRequest -Uri $pgUrl -OutFile "$env:RUNNER_TEMP/postgres.zip"
