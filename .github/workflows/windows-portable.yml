@@ -91,6 +91,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force -Path staging/data/postgres, staging/data/backups, staging/logs | Out-Null
           Copy-Item windows-portable/INICIAR-MARKYS.bat staging/INICIAR-MARKYS.bat -Force
+          Copy-Item windows-portable/INSTALAR-MARKYS.bat staging/INSTALAR-MARKYS.bat -Force
           Copy-Item windows-portable/CONFIGURAR-PRIMEIRO-ACESSO.bat staging/CONFIGURAR-PRIMEIRO-ACESSO.bat -Force
           Copy-Item windows-portable/CONFIGURACAO-LAN.md staging/LEIA-ME-REDE.md -Force
           Copy-Item windows-portable/INSTALAR-MARKYS.ps1 staging/INSTALAR-MARKYS.ps1 -Force
