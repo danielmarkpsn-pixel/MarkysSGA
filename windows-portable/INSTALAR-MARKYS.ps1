@@ -1,7 +1,7 @@
 # Instala a base de dados local e cria segredos exclusivos desta instalacao.
 # Executar uma vez no computador que sera o servidor.
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+$root = $PSScriptRoot
 Set-Location $root
 
 $pgBin = Join-Path $root 'runtime\postgres\bin'
@@ -64,7 +64,6 @@ OAUTH_ENCRYPTION_KEY=$oauthEnc
 "@
 [IO.File]::WriteAllText($envFile, $envText, (New-Object System.Text.UTF8Encoding($false)))
 
-# Gerar chaves RSA usando a extensao OpenSSL do PHP distribuido no runtime.
 & (Join-Path $root 'runtime\frankenphp.exe') php-cli (Join-Path $root 'gerar-chaves.php')
 if ($LASTEXITCODE -ne 0 -or !(Test-Path $private) -or !(Test-Path $public)) {
   throw 'Falha ao gerar chaves JWT. Verifique se a extensao openssl esta disponivel no runtime.'
