@@ -24,10 +24,9 @@ http://:8080 {
 				replace authorization REDACTED
 			}
 		}
-	}
 
 	encode zstd br gzip
-	root {$SERVER_ROOT:public/}
+	root "{$SERVER_ROOT:public/}"
 
 	mercure {
 		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
@@ -41,4 +40,3 @@ http://:8080 {
 		resolve_root_symlink false
 	}
 }
-
