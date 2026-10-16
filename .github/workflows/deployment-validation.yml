@@ -1,0 +1,26 @@
+name: Validar implantacao MARKYS SGA
+
+on:
+  pull_request:
+    paths:
+      - "compose.yaml"
+      - "compose.production.yaml"
+      - "Dockerfile"
+      - ".env"
+      - ".env.example"
+      - ".github/workflows/deployment-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validar sintaxe e variáveis do Compose
+        run: docker compose --env-file .env.example -f compose.yaml -f compose.production.yaml config --quiet
+      - name: Construir imagem de teste
+        run: docker build --build-arg GIT_COMMIT=${GITHUB_SHA} -t markys-sga:validation .
