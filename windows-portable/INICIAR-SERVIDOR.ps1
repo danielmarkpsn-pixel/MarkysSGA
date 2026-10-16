@@ -23,22 +23,49 @@ $secret = $Matches[1].Trim()
 $env:MERCURE_PUBLISHER_JWT_KEY = $secret
 $env:MERCURE_SUBSCRIBER_JWT_KEY = $secret
 
-$pgPid = Join-Path $pgData 'postmaster.pid'
-if (!(Test-Path $pgPid)) {
-  & (Join-Path $pgBin 'pg_ctl.exe') -D $pgData -l $pgLog -o '-h 127.0.0.1 -p 5432' start
-  if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL nao iniciou. Consulte logs\postgres.log.' }
+# Verifica o estado real do PostgreSQL; postmaster.pid sozinho pode estar obsoleto.
+$pgCtl = Join-Path $pgBin 'pg_ctl.exe'
+$psql = Join-Path $pgBin 'psql.exe'
+$pgStatusOutput = & $pgCtl -D $pgData status 2>&1
+$pgStatus = $LASTEXITCODE
+if ($pgStatus -ne 0) {
+  Write-Host 'Iniciando PostgreSQL local...'
+  $startOutput = & $pgCtl -D $pgData -l $pgLog -o '-h 127.0.0.1 -p 5432' start 2>&1
+  $startCode = $LASTEXITCODE
+  if ($startCode -ne 0) {
+    Write-Host ($startOutput | Out-String)
+    if (Test-Path $pgLog) { Get-Content $pgLog -Tail 40 }
+    throw 'PostgreSQL nao iniciou. Consulte logs\postgres.log; confira se a porta 5432 esta livre e se data\postgres esta integra.'
+  }
 }
 
 $env:DATABASE_URL = ([regex]::Match($envText, 'DATABASE_URL="([^"]+)"')).Groups[1].Value
 if (!$env:DATABASE_URL) { throw 'DATABASE_URL nao foi lida do .env.local.' }
 if ($envText -notmatch 'DATABASE_URL="postgresql://markys:([^@]+)@') { throw 'Senha do banco nao foi lida do .env.local.' }
 $env:PGPASSWORD = $Matches[1]
-$dbExists = & (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='markys'" 2>$null
-if ($LASTEXITCODE -eq 0 -and "$dbExists".Trim() -ne '1') {
+
+# Aguarda o banco ficar pronto, em vez de consultar imediatamente após pg_ctl start.
+$ready = $false
+for ($attempt = 1; $attempt -le 30; $attempt++) {
+  $null = & $psql -h 127.0.0.1 -p 5432 -U markys -d postgres -tAc 'SELECT 1' 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    $ready = $true
+    break
+  }
+  Start-Sleep -Seconds 2
+}
+if (!$ready) {
+  if (Test-Path $pgLog) { Get-Content $pgLog -Tail 60 }
+  throw 'PostgreSQL nao respondeu em 60 segundos. Consulte logs\postgres.log; confira a porta 5432, as permissoes e data\postgres.'
+}
+
+$dbExists = & $psql -h 127.0.0.1 -p 5432 -U markys -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='markys'" 2>$null
+if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL iniciou, mas nao foi possivel consultar o catalogo. Confira a senha em .env.local.' }
+if ("$dbExists".Trim() -ne '1') {
   & (Join-Path $pgBin 'createdb.exe') -h 127.0.0.1 -p 5432 -U markys markys
   if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel criar o banco markys.' }
 }
-& (Join-Path $pgBin 'psql.exe') -h 127.0.0.1 -p 5432 -U markys -d markys -c 'SELECT 1'
+& $psql -h 127.0.0.1 -p 5432 -U markys -d markys -c 'SELECT 1' 2>&1
 if ($LASTEXITCODE -ne 0) { throw 'Banco ainda nao acessivel. Verifique a senha e logs\postgres.log.' }
 
 Write-Host 'Aplicando migrations do MARKYS SGA...'
