@@ -30,7 +30,7 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\\\"127.0.0.1\\\",8080) ? 0 : 1);'"]
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",8080) ? 0 : 1);'"]
       interval: 30s
       timeout: 5s
       retries: 5
