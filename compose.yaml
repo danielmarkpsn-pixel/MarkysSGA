@@ -22,6 +22,8 @@ services:
 
 ###> symfony/mercure-bundle ###
   mercure:
+    # Hub externo opcional. A imagem FrankenPHP do MARKYS inclui o hub Mercure embutido.
+    profiles: ["external-mercure"]
     image: dunglas/mercure
     restart: unless-stopped
     environment:
