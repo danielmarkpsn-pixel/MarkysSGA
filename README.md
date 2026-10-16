@@ -29,6 +29,10 @@ O código-base utiliza PHP e componentes do ecossistema Symfony. Consulte o arqu
 
 ## Instalação e documentação
 
+- [Plano de distribuição local e online](docs/DISTRIBUICAO.md)
+- [Exemplo de variáveis de ambiente](.env.example)
+- [Configuração Compose de produção](compose.production.yaml)
+
 Como esta versão está sendo adaptada, utilize primeiro a documentação do projeto original como referência e confira os requisitos da versão existente neste repositório:
 
 - [Documentação oficial do NovoSGA](https://novosga.org/docs/)
